@@ -3,4 +3,4 @@ This project is part of a series called "Weekend Projects" the majority of these
 
 ## Digram
 This is an example diagram of what the final output could look like
-[Diagram](imgs/diagram.png)
+![Diagram](imgs/diagram.png)
