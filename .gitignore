@@ -1,0 +1,15 @@
+*
+
+# Allow Python files
+!*.py 
+!requirements.txt
+
+# Allow text/misc files
+!README.md
+!LICENSE
+!.env.example
+!.gitignore
+
+# Allow imgs
+!imgs
+!imgs/diagram.png
