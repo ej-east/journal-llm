@@ -4,6 +4,21 @@
 !*.py 
 !requirements.txt
 
+## Modules
+!modules
+
+## AI Module
+!modules/AI
+!modules/AI/*.py
+
+## Videos Module
+!modules/videos
+!modules/videos/*.py
+
+## Notion Module
+!modules/notion
+!modules/notion/*.py
+
 # Allow text/misc files
 !README.md
 !LICENSE

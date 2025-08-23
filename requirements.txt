@@ -1,3 +1,7 @@
 openai-whisper
 ffmpeg-python
 yt-dlp
+python-dotenv
+
+# Might want to add support for more models later on
+google-genai
