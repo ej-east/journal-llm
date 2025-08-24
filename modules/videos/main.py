@@ -48,7 +48,7 @@ class VideoProcessor:
         if files:
             latest_file = max(files, key=getctime)
             logger.info(f"Downloaded YouTube Video: {latest_file}")
-            return str(file)
+            return str(latest_file)
         return
     
     def extract_audio(self, filepath : str) -> str | None:
