@@ -17,7 +17,7 @@ class VideoProccesser:
         self.audio_output_dir = audio_output_dir
         
         self.youtube_options = {
-            'outtmpl' : f'{self.video_output_dir}/%(totle)s.%(ext)s',
+            'outtmpl' : f'{self.video_output_dir}/%(title)s.%(ext)s',
             'format': 'best[height<=729]/best'
         }
         
