@@ -40,7 +40,7 @@ class AI:
 
         return results["text"]
     
-    def get_llm_summary(self, transcription : str) -> str | None:
+    def get_llm_summary(self, transcription : str) -> dict | None:
         logger.info("Creating summary from transcription")
         response = self.gemini_client.models.generate_content(
             model = "gemini-2.5-flash",
