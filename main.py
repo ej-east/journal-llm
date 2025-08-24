@@ -1,50 +1,31 @@
 from dotenv import load_dotenv
 from modules.AI.main import AI
 from modules.videos.main import VideoProccesser
+from modules.notion.main import NotionDB
 import os
 
 load_dotenv()
 
-URL = r"https://www.youtube.com/watch?v=OIenNRt2bjg"
-
-def formatted_print(llm_output : dict) -> bool:
-    try:
-        title = llm_output["title"]
-        summary = llm_output["summary"]
-        key_points = llm_output["key_points"]
-        action_items = llm_output["action_items"]
-        print(f"# {title}")
-        print(f"## Summary\n{summary}")
-        
-        print()
-        
-        print(f"## Key Points")
-        for point in key_points:
-            print(f"- {point}")
-        
-        print()
-                
-        print(f"## Key Points")
-        
-        for action in action_items:
-            print(f"- {action}")
-        
-        
-    except Exception as e:
-        print("[-] Failed to print final output")
-        return False    
-    return True
-
+URL = r"https://www.youtube.com/watch?v=DIeP3Y5VdV8&pp=ygUHYXdzIHNhYQ%3D%3D"
 
 
 def main() -> None:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    
+    notion_api_key = os.getenv("NOTION_API_KEY")
+    notion_database_id = os.getenv("NOTION_DATABASE_ID")
+    
+    if not gemini_api_key:
         return
     
-    videos = VideoProccesser()
-    ai = AI(api_key=api_key)
+    if not notion_api_key or not notion_database_id:
+        return
     
+    
+    videos = VideoProccesser()
+    ai = AI(api_key=gemini_api_key)
+    notion = NotionDB(api_key=notion_api_key, database_id=notion_database_id)
+        
     video_path = videos.download_video(url=URL)
     if not video_path:
         return
@@ -58,13 +39,18 @@ def main() -> None:
     if not transcription:
         return
     
-    summary = ai.get_llm_summary(transcription)
+    llm_output = ai.get_llm_summary(transcription)
     
-    if not summary:
+    if not llm_output:
         return
     
-    formatted_print(summary)
-
+    notion.add_entry(
+        title=llm_output["title"],
+        summary=llm_output["summary"],
+        key_points=llm_output["key_points"],
+        action_items=llm_output["action_items"]
+    )
+    
 
 if __name__ == "__main__":
     main()

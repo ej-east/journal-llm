@@ -26,7 +26,7 @@ class AI:
             
             Transcription: {transcription}
             
-            Return only valid JSON.
+            Return only valid JSON.  For bulleted list only use - not *s
             """
 
 
