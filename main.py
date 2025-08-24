@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 from modules.AI.main import AI
-from modules.videos.main import VideoProccesser
+from modules.videos.main import VideoProcessor
 from modules.notion.main import NotionDB
 import os, logging, argparse
 
@@ -66,7 +66,7 @@ def main() -> None:
     using_notion = notion_api_key and notion_database_id
     
     
-    videos = VideoProccesser()
+    videos = VideoProcessor()
     ai = AI(api_key=gemini_api_key)
     
     if notion_api_key and notion_database_id and using_notion:

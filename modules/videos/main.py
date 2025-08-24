@@ -9,7 +9,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-class VideoProccesser:
+class VideoProcessor:
     def __init__(self, video_output_dir : str = "downloads", audio_output_dir : str = "audio") -> None:
         logger.info("Successfully loaded Video Proccesser module")
         
