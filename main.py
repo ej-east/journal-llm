@@ -60,10 +60,13 @@ def main() -> None:
     notion_database_id = os.getenv("NOTION_DATABASE_ID")
     
     if not gemini_api_key:
+        logger.error("Gemini key not found")
         return
     
     using_notion = notion_api_key and notion_database_id
     
+    if not using_notion:
+        logger.info("Not using Notion as database...")
     
     videos = VideoProcessor()
     ai = AI(api_key=gemini_api_key)
@@ -74,24 +77,29 @@ def main() -> None:
     if args.youtube:
         video_path = videos.download_video(url=args.youtube)
         if not video_path:
+            logger.error("YouTube download failed")
             return
     elif args.local:
         video_path = args.local
         if not validate_local_file(video_path):
+            logger.error("Could not validate local file")
             return
     
     audio_path = videos.extract_audio(video_path)
     
     if not audio_path:
+        logger.error("Could not convert file to audio")
         return
     
     transcription = ai.transcribe_audio(audio_path)
     if not transcription:
+        logger.error("Could not transcribe")
         return
     
     llm_output = ai.get_llm_summary(transcription)
     
     if not llm_output:
+        logger.error("Could not generate LLM Output")
         return
     
     if notion_api_key and notion_database_id and using_notion:
