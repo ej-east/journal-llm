@@ -1,7 +1,7 @@
 from modules.logger import get_logger
 from os.path import getctime
 from pathlib import Path
-import yt_dlp, ffmpeg
+import yt_dlp, ffmpeg, requests
 
 
 logger = get_logger(__name__)
@@ -20,7 +20,14 @@ class VideoProcessor:
         
         Path(self.video_output_dir).mkdir(exist_ok=True)
         Path(self.audio_output_dir).mkdir(exist_ok=True)
-
+        
+    def is_valid_url(self, url: str) -> bool:
+        response = requests.get(url)
+        try:
+            response.raise_for_status()
+        except:
+            return False
+        return True
     def download_video(self, url : str) -> str | None:
         logger.info("Starting YouTube video download")
         with yt_dlp.YoutubeDL(self.youtube_options) as youtube_downloader:
