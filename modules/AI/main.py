@@ -1,13 +1,8 @@
-import whisper, warnings, logging, json
+from modules.logger import get_logger
+import whisper, warnings, json
 from google import genai
 
-logger = logging.getLogger(__name__)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = get_logger(__name__)
 
 class AI:
     def __init__(self, api_key : str) -> None:

@@ -1,15 +1,9 @@
+from modules.logger import get_logger
 from datetime import datetime
 from notion_client import Client
-import logging
 import re
 
-logger = logging.getLogger(__name__)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = get_logger(__name__)
 
 class NotionDB:
     def __init__(self, api_key : str, database_id : str) -> None:

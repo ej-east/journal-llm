@@ -1,13 +1,10 @@
-import logging, yt_dlp, ffmpeg
-from pathlib import Path
+from modules.logger import get_logger
 from os.path import getctime
-logger = logging.getLogger(__name__)
+from pathlib import Path
+import yt_dlp, ffmpeg
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+
+logger = get_logger(__name__)
 
 class VideoProcessor:
     def __init__(self, video_output_dir : str = "downloads", audio_output_dir : str = "audio") -> None:
