@@ -74,7 +74,7 @@ def main() -> None:
     if notion_api_key and notion_database_id and using_notion:
         notion = NotionDB(api_key=notion_api_key, database_id=notion_database_id)
 
-    if args.youtube and videos.is_valid_url(args.youtube):
+    if args.youtube and videos.is_valid_url(args.youtube) and ("youtube" in args.youtube):
         video_path = videos.download_video(url=args.youtube)
         if not video_path:
             logger.error("YouTube download failed")
