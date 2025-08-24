@@ -1,8 +1,9 @@
-from dotenv import load_dotenv
-from modules.AI.main import AI
+from modules.logger import get_logger, setup_logging
 from modules.videos.main import VideoProcessor
 from modules.notion.main import NotionDB
-from modules.logger import get_logger, setup_logging
+from modules.AI.main import AI
+from dotenv import load_dotenv
+from pathlib import Path
 from logging import INFO
 import os, argparse
 
@@ -41,14 +42,12 @@ def load_argparse():
     return parser.parse_args()
 
 def validate_local_file(filepath :str) -> bool:
-    if not os.path.exists(filepath):
+    file = Path(filepath)
+    if not file.exists():
         logger.error("File not found")
         return False
-    if not os.path.isfile(filepath):
+    if not file.is_file():
         logger.error(f"Path is not a file")
-        return False
-    if not os.access(filepath, os.R_OK):
-        logger.error(f"File is not readable")
         return False
     return True
 
