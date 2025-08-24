@@ -14,8 +14,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-URL = r"https://www.youtube.com/watch?v=DIeP3Y5VdV8&pp=ygUHYXdzIHNhYQ%3D%3D"
-
 def load_argparse():
     parser = argparse.ArgumentParser(
         description='Process videos from YouTube URLs or local files, transcribe, summarize, and optionally save to Notion.',
