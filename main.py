@@ -122,7 +122,7 @@ def main() -> None:
             print(f"  □ {item}")
         print("="*50 + "\n")
     
-    if bool(os.environ("DELETE_UNEEDED_FILES")):
+    if bool(os.getenv("DELETE_UNEEDED_FILES")):
         logger.info("Cleaning up uneeded files...")
         os.remove(video_path)
         os.remove(audio_path)
