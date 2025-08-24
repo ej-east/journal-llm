@@ -93,7 +93,10 @@ class NotionDB:
                         "date": {
                             "start": datetime.now().strftime("%Y-%m-%d")
                         }
-                     }
+                     },
+                    "Is Read": {
+                        "checkbox" : False
+                    }
                  },
                 children=[
                     # Main title (H1)
