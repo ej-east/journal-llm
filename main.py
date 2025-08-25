@@ -74,7 +74,13 @@ def main() -> None:
     if notion_api_key and notion_database_id and using_notion:
         notion = NotionDB(api_key=notion_api_key, database_id=notion_database_id)
 
-    if args.youtube and videos.is_valid_url(args.youtube) and ("youtube" in args.youtube):
+    if args.youtube:
+        if not videos.is_valid_url(args.youtube):
+            logger.error(f"Invalid YouTube URL: {args.youtube}")
+            return
+        if "youtube" not in args.youtube.lower() and "youtu.be" not in args.youtube.lower():
+            logger.error("URL does not appear to be a YouTube URL")
+            return
         video_path = videos.download_video(url=args.youtube)
         if not video_path:
             logger.error("YouTube download failed")
@@ -84,6 +90,9 @@ def main() -> None:
         if not validate_local_file(video_path):
             logger.error("Could not validate local file")
             return
+    else:
+        logger.error("No valid input provided")
+        return
     
     audio_path = videos.extract_audio(video_path)
     
