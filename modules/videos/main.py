@@ -28,7 +28,8 @@ class VideoProcessor:
         except:
             return False
         return True
-    def download_video(self, url : str) -> str | None:
+    
+    def download_youtube_video(self, url : str) -> str | None:
         logger.info("Starting YouTube video download")
         with yt_dlp.YoutubeDL(self.youtube_options) as youtube_downloader:
             info = youtube_downloader.extract_info(url, download=False)

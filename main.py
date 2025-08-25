@@ -81,7 +81,7 @@ def main() -> None:
         if "youtube" not in args.youtube.lower() and "youtu.be" not in args.youtube.lower():
             logger.error("URL does not appear to be a YouTube URL")
             return
-        video_path = videos.download_video(url=args.youtube)
+        video_path = videos.download_youtube_video(url=args.youtube)
         if not video_path:
             logger.error("YouTube download failed")
             return
