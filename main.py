@@ -1,3 +1,5 @@
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich import print
 from modules.logger import get_logger, setup_logging
 from modules.videos.main import VideoProcessor
 from modules.notion.main import NotionDB
@@ -10,15 +12,16 @@ from modules.exceptions import (
     NotionIntegrationError,
     InvalidAPIKeyError
 )
+
 from dotenv import load_dotenv
 from pathlib import Path
-from logging import INFO
+from logging import INFO, WARNING
 import os, argparse, sys
 
 load_dotenv()
 
 setup_logging(
-    level=INFO,
+    level=WARNING,
 )
 
 logger = get_logger(__name__)
@@ -110,81 +113,93 @@ def main() -> None:
                 logger.info("Continuing without Notion integration...")
                 using_notion = False
                 notion = None
+        with Progress(
+        SpinnerColumn(spinner_name="arrow3", style="red"),
+        TextColumn("[bold blue]{task.description}"), ) as progress:
+            
+            task = progress.add_task("Starting...", total=None)
 
-        # Process video input
-        if args.youtube:
-            if not videos.is_valid_url(args.youtube):
-                logger.error(f"Invalid or unreachable URL: {args.youtube}")
+            # Process video input
+            if args.youtube:
+                if not videos.is_valid_url(args.youtube):
+                    logger.error(f"Invalid or unreachable URL: {args.youtube}")
+                    sys.exit(1)
+                if "youtube" not in args.youtube.lower() and "youtu.be" not in args.youtube.lower():
+                    logger.error(f"URL does not appear to be a YouTube URL: {args.youtube}")
+                    sys.exit(1)
+                
+                try:
+                    progress.update(task, description="Grabbing YouTube video")
+                    video_path = videos.download_youtube_video(url=args.youtube)
+                except VideoProcessingError as e:
+                    logger.error(f"YouTube download failed: {str(e)}")
+                    sys.exit(1)
+            elif args.local:
+                progress.update(task, description="Loading Local Video")
+                video_path = args.local
+                if not validate_local_file(video_path):
+                    logger.error(f"Invalid local file: {video_path}")
+                    sys.exit(1)
+            elif args.url:
+                if not videos.is_valid_url(args.url):
+                    logger.error(f"Invalid or unreachable URL: {args.url}")
+                    sys.exit(1)
+                
+                try:
+                    progress.update(task, description="Fetching remote video")
+                    video_path = videos.download_video(args.url)
+                except VideoProcessingError as e:
+                    logger.error(f"Video download failed: {str(e)}")
+                    sys.exit(1)
+
+            else:
+                logger.error("No valid input provided. Use --youtube, --local, or --url")
                 sys.exit(1)
-            if "youtube" not in args.youtube.lower() and "youtu.be" not in args.youtube.lower():
-                logger.error(f"URL does not appear to be a YouTube URL: {args.youtube}")
+        
+            # Extract audio from video
+            progress.update(task, description="Extracting audio from video")
+            try:
+                audio_path = videos.extract_audio(video_path)
+            except VideoProcessingError as e:
+                logger.error(f"Audio extraction failed: {str(e)}")
                 sys.exit(1)
             
+            # Transcribe audio
+            progress.update(task, description="Transcribing audio")
             try:
-                video_path = videos.download_youtube_video(url=args.youtube)
-            except VideoProcessingError as e:
-                logger.error(f"YouTube download failed: {str(e)}")
-                sys.exit(1)
-        elif args.local:
-            video_path = args.local
-            if not validate_local_file(video_path):
-                logger.error(f"Invalid local file: {video_path}")
-                sys.exit(1)
-        elif args.url:
-            if not videos.is_valid_url(args.url):
-                logger.error(f"Invalid or unreachable URL: {args.url}")
+                transcription = ai.transcribe_audio(audio_path)
+                logger.info(f"Transcription completed: {len(transcription)} characters")
+            except AIProcessingError as e:
+                logger.error(f"Transcription failed: {str(e)}")
                 sys.exit(1)
             
+            # Generate summary
+            progress.update(task, description="Generating Summary")
             try:
-                video_path = videos.download_video(args.url)
-            except VideoProcessingError as e:
-                logger.error(f"Video download failed: {str(e)}")
+                llm_output = ai.get_llm_summary(transcription)
+                logger.info("Summary generated successfully")
+            except AIProcessingError as e:
+                logger.error(f"Summary generation failed: {str(e)}")
                 sys.exit(1)
-
-        else:
-            logger.error("No valid input provided. Use --youtube, --local, or --url")
-            sys.exit(1)
-        
-        # Extract audio from video
-        try:
-            audio_path = videos.extract_audio(video_path)
-        except VideoProcessingError as e:
-            logger.error(f"Audio extraction failed: {str(e)}")
-            sys.exit(1)
-        
-        # Transcribe audio
-        try:
-            transcription = ai.transcribe_audio(audio_path)
-            logger.info(f"Transcription completed: {len(transcription)} characters")
-        except AIProcessingError as e:
-            logger.error(f"Transcription failed: {str(e)}")
-            sys.exit(1)
-        
-        # Generate summary
-        try:
-            llm_output = ai.get_llm_summary(transcription)
-            logger.info("Summary generated successfully")
-        except AIProcessingError as e:
-            logger.error(f"Summary generation failed: {str(e)}")
-            sys.exit(1)
-        
-        # Save to Notion or display results
-        if notion and using_notion:
-            try:
-                page_id = notion.add_entry(
-                    title=llm_output["title"],
-                    summary=llm_output["summary"],
-                    key_points=llm_output["key_points"],
-                    action_items=llm_output["action_items"]
-                )
-                logger.info(f"Results saved to Notion (Page ID: {page_id})")
-            except NotionIntegrationError as e:
-                logger.error(f"Failed to save to Notion: {str(e)}")
-                logger.info("Displaying results to console instead...")
+            
+            # Save to Notion or display results
+            if notion and using_notion:
+                progress.update(task, description="Adding results to Notion")
+                try:
+                    page_id = notion.add_entry(
+                        title=llm_output["title"],
+                        summary=llm_output["summary"],
+                        key_points=llm_output["key_points"],
+                        action_items=llm_output["action_items"]
+                    )
+                    logger.info(f"Results saved to Notion (Page ID: {page_id})")
+                except NotionIntegrationError as e:
+                    logger.error(f"Failed to save to Notion: {str(e)}")
+                    logger.info("Displaying results to console instead...")
+                    display_results(llm_output)
+            else:
                 display_results(llm_output)
-        else:
-            display_results(llm_output)
-    
+        
     except JournalLLMError as e:
         logger.error(f"Application error: {str(e)}")
         sys.exit(1)
@@ -209,6 +224,7 @@ def main() -> None:
                 logger.warning(f"Failed to clean up some files: {str(e)}")
         
         logger.info("Program completed successfully")
+    print("[green]Program ran successfully[/]")
 
 
 def display_results(llm_output: dict) -> None:

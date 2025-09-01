@@ -22,7 +22,10 @@ class VideoProcessor:
         
         self.youtube_options = {
             'outtmpl' : f'{self.video_output_dir}/%(title)s.%(ext)s',
-            'format': 'best[height<=729]/best'
+            'format': 'best[height<=729]/best',
+            'quiet': True,  # Suppress yt-dlp output
+            'no_warnings': True,  # Suppress warnings
+            'no_progress': True,  # Don't show download progress
         }
         
         self.headers = {
