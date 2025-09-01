@@ -43,39 +43,43 @@ class VideoProcessor:
     
     def download_youtube_video(self, url : str) -> str:
         logger.info(f"Starting YouTube video download from: {url}")
+        downloaded_file_path = None
         try:
-            with yt_dlp.YoutubeDL(self.youtube_options) as youtube_downloader:
+            options_with_hook = self.youtube_options.copy()
+            
+            def progress_hook(d):
+                nonlocal downloaded_file_path
+                if d['status'] == 'finished':
+                    downloaded_file_path = d['filename']
+                    logger.debug(f"Download finished: {downloaded_file_path}")
+            
+            options_with_hook['progress_hooks'] = [progress_hook]
+            
+            with yt_dlp.YoutubeDL(options_with_hook) as youtube_downloader:
                 info = youtube_downloader.extract_info(url, download=False)
                 
                 if not info:
                     raise VideoDownloadError(f"Could not extract video information from URL: {url}")
                 
-            video_title = info.get('title', 'Unknown')
-            duration = info.get('duration', 0)
-            logger.info(f"Downloading video: '{video_title}' (duration: {duration}s)")
-            
-            youtube_downloader.download([url])
+                video_title = info.get('title', 'Unknown')
+                duration = info.get('duration', 0)
+                logger.info(f"Downloading video: '{video_title}' (duration: {duration}s)")
+                
+                info = youtube_downloader.extract_info(url, download=True)
+                
+                if downloaded_file_path and Path(downloaded_file_path).exists():
+                    logger.info(f"Downloaded YouTube video: {downloaded_file_path}")
+                    return str(downloaded_file_path)
+
+                
+                raise VideoDownloadError(f"Could not determine downloaded file path")
+                
         except yt_dlp.utils.DownloadError as e:
             raise VideoDownloadError(f"YouTube download failed: {str(e)}")
         except Exception as e:
+            if isinstance(e, VideoDownloadError):
+                raise
             raise VideoDownloadError(f"Unexpected error during YouTube download: {str(e)}")
-        
-        # Now we need to figure which file we just downloaded....
-        
-        ## First approach is to list all of the files and see if it matches what we expect the filename to be
-        for file in tuple(Path(self.video_output_dir).iterdir()):
-            if file and file.is_file() and video_title.replace('/', '_') in file.stem:
-                logger.info(f"Downloaded YouTube Video: {file}")
-                return str(file)
-        
-        ## Second approach is to get the file that is the youngest
-        files = list(Path(self.video_output_dir).iterdir())
-        if files:
-            latest_file = max(files, key=getctime)
-            logger.info(f"Downloaded YouTube Video: {latest_file}")
-            return str(latest_file)
-        
-        raise VideoDownloadError(f"Downloaded file could not be located in {self.video_output_dir}")
     
     def download_video(self, url : str, filename : str = "output.mp4") -> str:
         logger.info(f"Starting video download from: {url}")
