@@ -4,13 +4,21 @@ A Python tool that automatically transcribes and summarizes video content, with 
 
 ## Features
 
-- Download videos from YouTube URLs or process local video files
-- Automatic audio extraction and transcription using OpenAI Whisper
-- AI-powered summarization with Google Gemini
-- Optional Notion database integration for organizing summaries
-- CLI interface for easy usage
+- **Multi-source video support**: Process YouTube videos, local files, or remote URLs
+- **Automatic transcription**: High-quality audio-to-text using OpenAI Whisper
+- **AI summarization**: Generate structured summaries with Google Gemini
+- **Notion integration**: Optionally save summaries to your Notion knowledge base
+- **Smart file management**: Auto-cleanup of temporary files after processing
+- **Progress tracking**: Visual feedback with spinners and detailed logging
 
 ## Quick Start
+
+### Prerequisites
+
+- Python 3.8 or higher
+- FFmpeg installed on your system ([Download FFmpeg](https://ffmpeg.org/download.html))
+- Google Gemini API key ([Get API Key](https://makersuite.google.com/app/apikey))
+- (Optional) Notion API key and database ID for Notion integration
 
 ### Installation
 
@@ -21,8 +29,8 @@ cd journal-llm
 
 # Create virtual environment
 python -m venv venv
-venv\Scripts\activate  # On Windows
-# source venv/bin/activate  # On Linux/Mac
+source venv/bin/activate  # On Linux/Mac
+# venv\Scripts\activate  # On Windows
 
 # Install dependencies
 pip install -r requirements.txt
@@ -30,11 +38,23 @@ pip install -r requirements.txt
 
 ### Configuration
 
-1. Copy `.env.example` to `.env`
-2. Add your API keys:
-   - `GEMINI_API_KEY` - Required for AI summarization
-   - `NOTION_API_KEY` - Optional for Notion integration
-   - `NOTION_DATABASE_ID` - Optional for Notion integration
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` and add your API keys:
+   ```env
+   # Required for AI summarization
+   GEMINI_API_KEY=your_gemini_api_key_here
+   
+   # Optional: Notion integration
+   NOTION_API_KEY=your_notion_api_key_here
+   NOTION_DATABASE_ID=your_notion_database_id_here
+   
+   # Optional: Auto-cleanup downloaded files (1 = yes, 0 = no)
+   DELETE_UNNEEDED_FILES=1
+   ```
 
 ### Usage
 
@@ -44,23 +64,60 @@ python main.py --youtube "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Process a local video file
 python main.py --local "/path/to/video.mp4"
+
+# Process a remote video URL
+python main.py --url "https://example.com/video.mp4"
+
+# Force reprocessing (skip cache)
+python main.py --youtube "URL" --force
+
+# Verbose output for debugging
+python main.py --youtube "URL" --verbose
 ```
+
+## How It Works
+
+1. **Video Input**: Accepts YouTube URLs, local files, or remote video URLs
+2. **Audio Extraction**: Uses FFmpeg to extract audio track from video
+3. **Transcription**: OpenAI Whisper converts audio to text locally
+4. **Summarization**: Google Gemini generates structured summary
+5. **Output**: Displays in console or saves to Notion database
 
 ## Output Example
 
 ![Diagram](imgs/diagram.png)
 
 The tool generates structured summaries including:
-- **Title**: Concise content title
-- **Summary**: Brief overview of the content
-- **Key Points**: Main topics discussed
-- **Action Items**: Tasks or next steps identified
+- **Title**: Auto-generated descriptive title
+- **Summary**: Comprehensive overview of the content
+- **Key Points**: Bullet-point list of main topics
+- **Action Items**: Actionable takeaways and next steps
+- **Metadata**: Video duration, processing time, source URL
 
-## Requirements
+## Project Structure
 
-- Python 3.8+
-- FFmpeg (for audio extraction)
-- API keys for Gemini and optionally Notion
+```
+journal-llm/
+├── main.py             # Simple entry point wrapper
+├── cli.py              # Main CLI application with argument parsing
+├── src/
+│   └── modules/
+│       ├── AI/
+│       │   └── main.py      # Transcription (Whisper) and summarization (Gemini)
+│       ├── videos/
+│       │   └── main.py      # Video downloading and audio extraction
+│       ├── notion/
+│       │   └── main.py      # Notion database integration
+│       ├── config.py        # Configuration management
+│       ├── formatters.py    # Output formatting utilities
+│       ├── exceptions.py    # Custom exception classes
+│       └── logger.py        # Centralized logging setup
+├── downloads/          # Temporary video storage (auto-created)
+├── audio/              # Extracted audio files (auto-created)
+├── .env.example        # Environment variables template
+├── .env                # Your API keys (create from .env.example)
+└── requirements.txt    # Python dependencies
+```
 
 ## License
 
