@@ -2,6 +2,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print
 from modules.logger import get_logger, setup_logging
 from modules.config import Config, ConfigurationError
+from modules.formatters import FormatterFactory
 from modules.videos.main import VideoProcessor
 from modules.notion.main import NotionDB
 from modules.AI.main import AI
@@ -16,6 +17,7 @@ from modules.exceptions import (
 
 from pathlib import Path
 from logging import INFO, WARNING
+from typing import Optional
 import os, argparse, sys
 
 logger = get_logger(__name__)
@@ -48,6 +50,22 @@ def load_argparse():
         '-u', '--url',
         type=str,
         help='Remote video URL to process'
+    )
+    
+    # Output format options
+    parser.add_argument(
+        '--output-format',
+        type=str,
+        choices=['plain', 'markdown', 'json'],
+        default='plain',
+        help='Output format for the summary (default: plain)'
+    )
+    
+    parser.add_argument(
+        '--output',
+        type=str,
+        metavar='FILE',
+        help='Save output to file instead of displaying'
     )
     
     return parser.parse_args()
@@ -182,7 +200,7 @@ def main() -> None:
                 logger.error(f"Summary generation failed: {str(e)}")
                 sys.exit(1)
             
-            # Save to Notion or display results
+            # Save to Notion or display/save results
             if notion and config.notion.enabled:
                 progress.update(task, description="Adding results to Notion")
                 try:
@@ -196,9 +214,9 @@ def main() -> None:
                 except NotionIntegrationError as e:
                     logger.error(f"Failed to save to Notion: {str(e)}")
                     logger.info("Displaying results to console instead...")
-                    display_results(llm_output)
+                    output_results(llm_output, args.output_format, args.output)
             else:
-                display_results(llm_output)
+                output_results(llm_output, args.output_format, args.output)
         
     except JournalLLMError as e:
         logger.error(f"Application error: {str(e)}")
@@ -227,19 +245,41 @@ def main() -> None:
     print("[green]Program ran successfully[/]")
 
 
+def output_results(llm_output: dict, format_type: str, output_file: Optional[str] = None) -> None:
+    """Output the summarized results in the specified format.
+    
+    Args:
+        llm_output: Dictionary containing the summary data
+        format_type: Output format ('plain', 'markdown', 'json')
+        output_file: Optional file path to save the output
+    """
+    try:
+        formatter = FormatterFactory.create(format_type)
+        
+        if output_file:
+            # Save to file
+            formatter.save_to_file(llm_output, output_file)
+            print(f"[green]✓ Output saved to: {output_file}[/green]")
+        else:
+            # Display to console
+            formatted_output = formatter.format(llm_output)
+            print(formatted_output)
+            
+    except ValueError as e:
+        logger.error(f"Invalid output format: {str(e)}")
+        # Fallback to plain text
+        formatter = FormatterFactory.create('plain')
+        print(formatter.format(llm_output))
+    except IOError as e:
+        logger.error(f"Failed to save output: {str(e)}")
+        # Fallback to console display
+        formatter = FormatterFactory.create(format_type)
+        print(formatter.format(llm_output))
+
+
 def display_results(llm_output: dict) -> None:
-    """Display the summarized results to console."""
-    print("\n" + "="*50)
-    print(f"TITLE: {llm_output['title']}")
-    print("="*50)
-    print(f"\nSUMMARY:\n{llm_output['summary']}")
-    print("\nKEY POINTS:")
-    for point in llm_output['key_points']:
-        print(f"  • {point}")
-    print("\nACTION ITEMS:")
-    for item in llm_output['action_items']:
-        print(f"  □ {item}")
-    print("="*50 + "\n")
+    """Legacy function for displaying results in plain text."""
+    output_results(llm_output, 'plain', None)
         
     
 
