@@ -1,6 +1,7 @@
 from modules.logger import get_logger
 from os.path import getctime
 from pathlib import Path
+from tqdm import tqdm
 import yt_dlp, ffmpeg, requests
 
 
@@ -16,6 +17,10 @@ class VideoProcessor:
         self.youtube_options = {
             'outtmpl' : f'{self.video_output_dir}/%(title)s.%(ext)s',
             'format': 'best[height<=729]/best'
+        }
+        
+        self.headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
         Path(self.video_output_dir).mkdir(exist_ok=True)
@@ -58,6 +63,19 @@ class VideoProcessor:
             logger.info(f"Downloaded YouTube Video: {latest_file}")
             return str(latest_file)
         return
+    
+    def download_video(self, url : str, filename : str = "output.mp4") -> str | None:
+        response = requests.get(url, stream=True, headers=self.headers)
+        total_size = int(response.headers.get('content-length', 0))
+
+        with open(f"{self.video_output_dir}/{filename}", 'wb') as file:
+            with tqdm(total=total_size, unit='B', unit_scale=True, desc=self.video_output_dir) as pbar:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+                    pbar.update(len(chunk))
+        
+        return filename
+        
     
     def extract_audio(self, filepath : str) -> str | None:
         audio_format = ".wav"

@@ -39,6 +39,12 @@ def load_argparse():
         help='Local video file path to process'
     )
     
+    input_group.add_argument(
+        '-u', '--url',
+        type=str,
+        help='Remote video URL to process'
+    )
+    
     return parser.parse_args()
 
 def validate_local_file(filepath :str) -> bool:
@@ -59,83 +65,96 @@ def main() -> None:
     notion_api_key = os.getenv("NOTION_API_KEY")
     notion_database_id = os.getenv("NOTION_DATABASE_ID")
     
-    if not gemini_api_key:
-        logger.error("Gemini key not found")
-        return
-    
-    using_notion = notion_api_key and notion_database_id
-    
-    if not using_notion:
-        logger.info("Not using Notion as database...")
-    
-    videos = VideoProcessor()
-    ai = AI(api_key=gemini_api_key)
-    
-    if notion_api_key and notion_database_id and using_notion:
-        notion = NotionDB(api_key=notion_api_key, database_id=notion_database_id)
+    try:
+        if not gemini_api_key:
+            logger.error("Gemini key not found")
+            return
+        
+        using_notion = notion_api_key and notion_database_id
+        
+        if not using_notion:
+            logger.info("Not using Notion as database...")
+        
+        videos = VideoProcessor()
+        ai = AI(api_key=gemini_api_key)
+        
+        if notion_api_key and notion_database_id and using_notion:
+            notion = NotionDB(api_key=notion_api_key, database_id=notion_database_id)
 
-    if args.youtube:
-        if not videos.is_valid_url(args.youtube):
-            logger.error(f"Invalid YouTube URL: {args.youtube}")
+        if args.youtube:
+            if not videos.is_valid_url(args.youtube):
+                logger.error(f"Invalid YouTube URL: {args.youtube}")
+                return
+            if "youtube" not in args.youtube.lower() and "youtu.be" not in args.youtube.lower():
+                logger.error("URL does not appear to be a YouTube URL")
+                return
+            video_path = videos.download_youtube_video(url=args.youtube)
+            if not video_path:
+                logger.error("YouTube download failed")
+                return
+        elif args.local:
+            video_path = args.local
+            if not validate_local_file(video_path):
+                logger.error("Could not validate local file")
+                return
+        elif args.url:
+            if not videos.is_valid_url(args.url):
+                logger.error(f"Invalid URL: {args.url}")
+                return
+            video_path = videos.download_video(args.url)
+
+        else:
+            logger.error("No valid input provided")
             return
-        if "youtube" not in args.youtube.lower() and "youtu.be" not in args.youtube.lower():
-            logger.error("URL does not appear to be a YouTube URL")
+        
+        audio_path = videos.extract_audio(video_path)
+        
+        if not audio_path:
+            logger.error("Could not convert file to audio")
             return
-        video_path = videos.download_youtube_video(url=args.youtube)
-        if not video_path:
-            logger.error("YouTube download failed")
+        
+        transcription = ai.transcribe_audio(audio_path)
+        if not transcription:
+            logger.error("Could not transcribe")
             return
-    elif args.local:
-        video_path = args.local
-        if not validate_local_file(video_path):
-            logger.error("Could not validate local file")
+        
+        llm_output = ai.get_llm_summary(transcription)
+        
+        if not llm_output:
+            logger.error("Could not generate LLM Output")
             return
-    else:
-        logger.error("No valid input provided")
-        return
-    
-    audio_path = videos.extract_audio(video_path)
-    
-    if not audio_path:
-        logger.error("Could not convert file to audio")
-        return
-    
-    transcription = ai.transcribe_audio(audio_path)
-    if not transcription:
-        logger.error("Could not transcribe")
-        return
-    
-    llm_output = ai.get_llm_summary(transcription)
-    
-    if not llm_output:
-        logger.error("Could not generate LLM Output")
-        return
-    
-    if notion_api_key and notion_database_id and using_notion:
-        notion.add_entry(
-            title=llm_output["title"],
-            summary=llm_output["summary"],
-            key_points=llm_output["key_points"],
-            action_items=llm_output["action_items"]
-        )
-    else:
-        print("\n" + "="*50)
-        print(f"TITLE: {llm_output['title']}")
-        print("="*50)
-        print(f"\nSUMMARY:\n{llm_output['summary']}")
-        print("\nKEY POINTS:")
-        for point in llm_output['key_points']:
-            print(f"  • {point}")
-        print("\nACTION ITEMS:")
-        for item in llm_output['action_items']:
-            print(f"  □ {item}")
-        print("="*50 + "\n")
-    
-    if bool(os.getenv("DELETE_UNEEDED_FILES")):
-        logger.info("Cleaning up uneeded files...")
-        os.remove(video_path)
-        os.remove(audio_path)
-    logger.info("Successfully ran program...")
+        
+        if notion_api_key and notion_database_id and using_notion:
+            notion.add_entry(
+                title=llm_output["title"],
+                summary=llm_output["summary"],
+                key_points=llm_output["key_points"],
+                action_items=llm_output["action_items"]
+            )
+        else:
+            print("\n" + "="*50)
+            print(f"TITLE: {llm_output['title']}")
+            print("="*50)
+            print(f"\nSUMMARY:\n{llm_output['summary']}")
+            print("\nKEY POINTS:")
+            for point in llm_output['key_points']:
+                print(f"  • {point}")
+            print("\nACTION ITEMS:")
+            for item in llm_output['action_items']:
+                print(f"  □ {item}")
+            print("="*50 + "\n")
+    except Exception as e:
+        logger.error(f"{e}")
+    finally:
+        if bool(os.getenv("DELETE_UNNEEDED_FILES")):
+            logger.info("Cleaning up unneeded files...")
+            if video_path:
+                logger.info("Removing Video")
+                os.remove(video_path)
+            if audio_path:
+                logger.info("Removing Audio")
+                os.remove(audio_path)
+        logger.info("Successfully ran program...")
         
     
 
