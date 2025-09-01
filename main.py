@@ -1,6 +1,7 @@
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print
 from modules.logger import get_logger, setup_logging
+from modules.config import Config, ConfigurationError
 from modules.videos.main import VideoProcessor
 from modules.notion.main import NotionDB
 from modules.AI.main import AI
@@ -13,16 +14,9 @@ from modules.exceptions import (
     InvalidAPIKeyError
 )
 
-from dotenv import load_dotenv
 from pathlib import Path
 from logging import INFO, WARNING
 import os, argparse, sys
-
-load_dotenv()
-
-setup_logging(
-    level=WARNING,
-)
 
 logger = get_logger(__name__)
 
@@ -74,29 +68,32 @@ def main() -> None:
     audio_path = None
     
     try:
-        # Load environment variables
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-        notion_api_key = os.getenv("NOTION_API_KEY")
-        notion_database_id = os.getenv("NOTION_DATABASE_ID")
-        
-        if not gemini_api_key:
-            logger.error("GEMINI_API_KEY environment variable not found. Please set it in your .env file.")
+        # Load and validate configuration
+        try:
+            config = Config.from_env()
+            logger.debug(f"Configuration loaded: {config.summary()}")
+        except ConfigurationError as e:
+            logger.error(f"Configuration error: {str(e)}")
+            sys.exit(1)
+        except InvalidAPIKeyError as e:
+            logger.error(f"API key error: {str(e)}")
+            logger.error("Please check your .env file")
             sys.exit(1)
         
-        using_notion = bool(notion_api_key and notion_database_id)
+        setup_logging(level=config.ui.log_level)
         
-        if not using_notion:
-            logger.info("Notion integration disabled (API key or database ID not configured)")
-        
-        # Initialize modules
+        # Initialize modules with configuration
         try:
-            videos = VideoProcessor()
+            videos = VideoProcessor(
+                video_output_dir=config.video.video_output_dir,
+                audio_output_dir=config.video.audio_output_dir
+            )
         except Exception as e:
             logger.error(f"Failed to initialize VideoProcessor: {str(e)}")
             sys.exit(1)
         
         try:
-            ai = AI(api_key=gemini_api_key)
+            ai = AI(api_key=config.ai.gemini_api_key)
         except InvalidAPIKeyError as e:
             logger.error(f"Invalid Gemini API key: {str(e)}")
             sys.exit(1)
@@ -105,17 +102,20 @@ def main() -> None:
             sys.exit(1)
         
         notion = None
-        if using_notion:
+        if config.notion.enabled:
             try:
-                notion = NotionDB(api_key=notion_api_key, database_id=notion_database_id)
+                notion = NotionDB(
+                    api_key=config.notion.api_key,
+                    database_id=config.notion.database_id
+                )
             except NotionIntegrationError as e:
                 logger.error(f"Failed to initialize Notion integration: {str(e)}")
                 logger.info("Continuing without Notion integration...")
-                using_notion = False
+                config.notion.enabled = False
                 notion = None
         with Progress(
-        SpinnerColumn(spinner_name="arrow3", style="red"),
-        TextColumn("[bold blue]{task.description}"), ) as progress:
+        SpinnerColumn(spinner_name=config.ui.spinner_style, style=config.ui.spinner_color),
+        TextColumn(f"[{config.ui.text_color}]{{task.description}}"), ) as progress:
             
             task = progress.add_task("Starting...", total=None)
 
@@ -183,7 +183,7 @@ def main() -> None:
                 sys.exit(1)
             
             # Save to Notion or display results
-            if notion and using_notion:
+            if notion and config.notion.enabled:
                 progress.update(task, description="Adding results to Notion")
                 try:
                     page_id = notion.add_entry(
@@ -211,7 +211,7 @@ def main() -> None:
         sys.exit(1)
     finally:
         # Cleanup temporary files if configured
-        if bool(os.getenv("DELETE_UNNEEDED_FILES")):
+        if config.video.delete_files_after:
             logger.info("Cleaning up temporary files...")
             try:
                 if video_path and os.path.exists(video_path):
