@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
-from modules.logger import get_logger
+from src.modules.logger import get_logger
 
 logger = get_logger(__name__)
 

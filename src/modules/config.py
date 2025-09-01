@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
-from modules.exceptions import InvalidAPIKeyError, JournalLLMError
-from modules.logger import get_logger
+from src.modules.exceptions import InvalidAPIKeyError, JournalLLMError
+from src.modules.logger import get_logger
 
 logger = get_logger(__name__)
 

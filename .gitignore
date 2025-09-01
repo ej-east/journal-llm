@@ -1,30 +1,55 @@
+# ===========================================
+# Ignore everything by default
+# ===========================================
 *
 
-# Allow Python files
-!*.py 
-!requirements.txt
+# ===========================================
+# Source Code
+# ===========================================
 
-## Modules
-!modules
+# Main entry points
+!main.py
+!cli.py
 
-## AI Module
-!modules/AI
-!modules/AI/*.py
+# Source directory
+!src/
+!src/__init__.py
 
-## Videos Module
-!modules/videos
-!modules/videos/*.py
+# Modules directory
+!src/modules/
+!src/modules/__init__.py
+!src/modules/*.py
 
-## Notion Module
-!modules/notion
-!modules/notion/*.py
+# AI Module
+!src/modules/AI/
+!src/modules/AI/__init__.py
+!src/modules/AI/*.py
 
-# Allow text/misc files
-!README.md
-!LICENSE
+# Videos Module
+!src/modules/videos/
+!src/modules/videos/__init__.py
+!src/modules/videos/*.py
+
+# Notion Module
+!src/modules/notion/
+!src/modules/notion/__init__.py
+!src/modules/notion/*.py
+
+# ===========================================
+# Configuration & Documentation
+# ===========================================
+
+# Configuration files
 !.env.example
+!requirements.txt
 !.gitignore
 
-# Allow imgs
-!imgs
-!imgs/diagram.png
+# Documentation
+!README.md
+!LICENSE
+
+# Images
+!imgs/
+!imgs/*.png
+!imgs/*.jpg
+!imgs/*.svg

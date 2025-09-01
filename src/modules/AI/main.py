@@ -1,5 +1,5 @@
-from modules.logger import get_logger
-from modules.exceptions import (
+from src.modules.logger import get_logger
+from src.modules.exceptions import (
     TranscriptionError,
     SummarizationError,
     InvalidAPIKeyError,

@@ -5,6 +5,7 @@ yt-dlp
 python-dotenv
 notion_client
 rich
+clap
 
 # Might want to add support for more models later on
 google-genai
