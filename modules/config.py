@@ -44,9 +44,6 @@ class AIConfig:
         
         if not self.gemini_api_key.strip():
             raise InvalidAPIKeyError("GEMINI_API_KEY cannot be empty")
-        
-        # TODO(human): Add validation for API key format if needed
-        # Consider checking key length, prefix patterns, etc.
 
 
 @dataclass
