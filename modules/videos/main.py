@@ -1,4 +1,10 @@
 from modules.logger import get_logger
+from modules.exceptions import (
+    VideoDownloadError,
+    InvalidURLError,
+    AudioExtractionError,
+    FileNotFoundError as CustomFileNotFoundError
+)
 from os.path import getctime
 from pathlib import Path
 from tqdm import tqdm
@@ -27,26 +33,32 @@ class VideoProcessor:
         Path(self.audio_output_dir).mkdir(exist_ok=True)
         
     def is_valid_url(self, url: str) -> bool:
-        response = requests.get(url)
         try:
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
-        except:
+            return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"URL validation failed for '{url}': {str(e)}")
             return False
-        return True
     
-    def download_youtube_video(self, url : str) -> str | None:
-        logger.info("Starting YouTube video download")
-        with yt_dlp.YoutubeDL(self.youtube_options) as youtube_downloader:
-            info = youtube_downloader.extract_info(url, download=False)
+    def download_youtube_video(self, url : str) -> str:
+        logger.info(f"Starting YouTube video download from: {url}")
+        try:
+            with yt_dlp.YoutubeDL(self.youtube_options) as youtube_downloader:
+                info = youtube_downloader.extract_info(url, download=False)
+                
+                if not info:
+                    raise VideoDownloadError(f"Could not extract video information from URL: {url}")
+                
+            video_title = info.get('title', 'Unknown')
+            duration = info.get('duration', 0)
+            logger.info(f"Downloading video: '{video_title}' (duration: {duration}s)")
             
-            if not info:
-                logger.warning("No information on YouTube video found")
-                return
-            
-        video_title = info.get('title', 'Unknown')
-        duration = info.get('duration', 0)
-        
-        youtube_downloader.download([url])
+            youtube_downloader.download([url])
+        except yt_dlp.utils.DownloadError as e:
+            raise VideoDownloadError(f"YouTube download failed: {str(e)}")
+        except Exception as e:
+            raise VideoDownloadError(f"Unexpected error during YouTube download: {str(e)}")
         
         # Now we need to figure which file we just downloaded....
         
@@ -62,35 +74,56 @@ class VideoProcessor:
             latest_file = max(files, key=getctime)
             logger.info(f"Downloaded YouTube Video: {latest_file}")
             return str(latest_file)
-        return
-    
-    def download_video(self, url : str, filename : str = "output.mp4") -> str | None:
-        response = requests.get(url, stream=True, headers=self.headers)
-        total_size = int(response.headers.get('content-length', 0))
-
-        with open(f"{self.video_output_dir}/{filename}", 'wb') as file:
-            with tqdm(total=total_size, unit='B', unit_scale=True, desc=self.video_output_dir) as pbar:
-                for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
-                    pbar.update(len(chunk))
         
-        return filename
+        raise VideoDownloadError(f"Downloaded file could not be located in {self.video_output_dir}")
+    
+    def download_video(self, url : str, filename : str = "output.mp4") -> str:
+        logger.info(f"Starting video download from: {url}")
+        try:
+            response = requests.get(url, stream=True, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            total_size = int(response.headers.get('content-length', 0))
+            
+            output_path = f"{self.video_output_dir}/{filename}"
+            with open(output_path, 'wb') as file:
+                with tqdm(total=total_size, unit='B', unit_scale=True, desc=self.video_output_dir) as pbar:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            file.write(chunk)
+                            pbar.update(len(chunk))
+            
+            logger.info(f"Video downloaded successfully: {output_path}")
+            return output_path
+        except requests.exceptions.RequestException as e:
+            raise VideoDownloadError(f"Failed to download video from {url}: {str(e)}")
+        except IOError as e:
+            raise VideoDownloadError(f"Failed to save video file: {str(e)}")
         
     
-    def extract_audio(self, filepath : str) -> str | None:
+    def extract_audio(self, filepath : str) -> str:
         audio_format = ".wav"
         video_path = Path(filepath)
         audio_output_dir = Path(self.audio_output_dir)
         audio_output_path = audio_output_dir / f"{video_path.stem}{audio_format}"
 
         if not video_path or not video_path.exists():
-            logger.warning("Video file was not found")
-            return
+            raise CustomFileNotFoundError(f"Video file not found: {filepath}")
         
-        logger.info("Extracting audio")
-        ffmpeg.input(str(video_path)).output(str(audio_output_path), acodec='pcm_s16le', ac=1, ar='16000').overwrite_output().run(quiet=True, capture_stderr=True)
-        
-        logger.info(f"Extracted Audio - Filename: {str(audio_output_path)}")
-        return str(audio_output_path)
+        logger.info(f"Extracting audio from: {filepath}")
+        try:
+            ffmpeg.input(str(video_path)).output(
+                str(audio_output_path), 
+                acodec='pcm_s16le', 
+                ac=1, 
+                ar='16000'
+            ).overwrite_output().run(quiet=True, capture_stderr=True)
+            
+            logger.info(f"Audio extracted successfully: {str(audio_output_path)}")
+            return str(audio_output_path)
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode() if e.stderr else "Unknown ffmpeg error"
+            raise AudioExtractionError(f"Failed to extract audio from {filepath}: {error_msg}")
+        except Exception as e:
+            raise AudioExtractionError(f"Unexpected error during audio extraction: {str(e)}")
         
         

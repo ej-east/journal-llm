@@ -1,16 +1,33 @@
 from modules.logger import get_logger
+from modules.exceptions import (
+    NotionAPIError,
+    NotionDatabaseError,
+    InvalidAPIKeyError
+)
 from datetime import datetime
 from notion_client import Client
+from notion_client.errors import APIResponseError
 import re
 
 logger = get_logger(__name__)
 
 class NotionDB:
     def __init__(self, api_key : str, database_id : str) -> None:
-        logger.info("Successfully loaded NotionDB module")
+        logger.info("Loading NotionDB module...")
+        
+        if not api_key:
+            raise InvalidAPIKeyError("Notion API key is required but not provided")
+        
+        if not database_id:
+            raise NotionDatabaseError("Notion database ID is required but not provided")
         
         self.database_id = database_id
-        self.notion_client = Client(auth=api_key)
+        
+        try:
+            self.notion_client = Client(auth=api_key)
+            logger.info("NotionDB module loaded successfully")
+        except Exception as e:
+            raise InvalidAPIKeyError(f"Failed to initialize Notion client: {str(e)}")
     
     def parse_markdown_to_rich_text(self, text: str) -> list:
         rich_text = []
@@ -68,8 +85,17 @@ class NotionDB:
             }
         }
     
-    def add_entry(self, title : str, summary : str, key_points : list[str], action_items: list[str]) -> str | None:
-        new_page = self.notion_client.pages.create(
+    def add_entry(self, title : str, summary : str, key_points : list[str], action_items: list[str]) -> str:
+        logger.info(f"Adding entry to Notion: '{title}'")
+        
+        if not title:
+            raise NotionDatabaseError("Title cannot be empty")
+        
+        if not summary:
+            raise NotionDatabaseError("Summary cannot be empty")
+        
+        try:
+            new_page = self.notion_client.pages.create(
                 parent={
                     "database_id": self.database_id
                 },
@@ -197,5 +223,16 @@ class NotionDB:
                     }
                 }
             ])
-        
-        logger.info(f"Added entry, {title}, to notion database")
+            
+            page_id = new_page.get('id', 'unknown')
+            logger.info(f"Successfully added entry '{title}' to Notion database (ID: {page_id})")
+            return page_id
+            
+        except APIResponseError as e:
+            error_msg = f"Notion API error: {e.status} - {e.message}"
+            logger.error(error_msg)
+            raise NotionAPIError(error_msg)
+        except Exception as e:
+            error_msg = f"Failed to add entry to Notion: {str(e)}"
+            logger.error(error_msg)
+            raise NotionDatabaseError(error_msg)
